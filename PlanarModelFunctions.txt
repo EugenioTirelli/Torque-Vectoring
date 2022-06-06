@@ -1,0 +1,76 @@
+function [ometa_FL_dot, ometa_FR_dot, ometa_RL_dot, ometa_RR_dot] = WheelDynamic(MDRIVE_FL, MDRIVE_FR, MDRIVE_RL, MDRIVE_RR, F_xi_FL, F_xi_FR, F_xi_RL, F_xi_RR, JWHEEL, RWHEEL, ometa_FL, ometa_FR, ometa_RL, ometa_RR)
+
+
+ometa_FL_dot = (1/JWHEEL)*(MDRIVE_FL/ometa_FL - RWHEEL*F_xi_FL);
+ometa_FR_dot = (1/JWHEEL)*(MDRIVE_FR/ometa_FR - RWHEEL*F_xi_FR);
+ometa_RL_dot = (1/JWHEEL)*(MDRIVE_RL/ometa_RL - RWHEEL*F_xi_RL);
+ometa_RR_dot = (1/JWHEEL)*(MDRIVE_RR/ometa_RR - RWHEEL*F_xi_RR);
+
+end  
+
+
+
+
+function [sig_FL, sig_FR, sig_RL, sig_RR, alpha_FL, alpha_FR, alpha_RL, alpha_RR] = WheelModel(vgx_prime, vgy_prime, omz_prime, RWHEEL, ometa_FL, ...
+          ometa_FR, ometa_RL, ometa_RR, delta1, delta2, A, B, T)
+
+vFL = (vgx_prime - T*omz_prime)*cos(delta1) + (vgy_prime + A*omz_prime)*sin(delta1);
+vFR = (vgx_prime + T*omz_prime)*cos(delta2) + (vgy_prime + A*omz_prime)*sin(delta2);
+vRL = (vgx_prime - T*omz_prime);
+vRR = (vgx_prime + T*omz_prime);
+
+sig_FL = (1 - vFL/(RWHEEL*ometa_FL))*100;
+sig_FR = (1 - vFR/(RWHEEL*ometa_FR))*100;
+sig_RL = (1 - vRL/(RWHEEL*ometa_RL))*100;
+sig_RR = (1 - vRR/(RWHEEL*ometa_RR))*100;
+
+alpha_FL = (delta1 - atan(( vgy_prime + A*omz_prime)/(vgx_prime - T*omz_prime)))*(180/pi);
+alpha_FR = (delta2 - atan(( vgy_prime + A*omz_prime)/(vgx_prime + T*omz_prime)))*(180/pi);
+alpha_RL =          (atan((-vgy_prime + B*omz_prime)/(vgx_prime - T*omz_prime)))*(180/pi);
+alpha_RR =          (atan((-vgy_prime + B*omz_prime)/(vgx_prime + T*omz_prime)))*(180/pi);
+
+
+end
+
+
+
+
+function [F_xi_FL, F_eta_FL, F_xi_FR, F_eta_FR, F_xi_RL, F_eta_RL, F_xi_RR, F_eta_RR] = ForcesModel(sig_FL, sig_FR, sig_RL, sig_RR, ...
+          alpha_FL, alpha_FR, alpha_RL, alpha_RR, Fz, CWHEEL, RWHEEL, KTL, KR, KTV)
+
+F_xi_FL = (6*RWHEEL*KTL*Fz)*sig_FL/(CWHEEL*KR);
+F_xi_FR = (6*RWHEEL*KTL*Fz)*sig_FR/(CWHEEL*KR);
+F_xi_RL = (6*RWHEEL*KTL*Fz)*sig_RL/(CWHEEL*KR);
+F_xi_RR = (6*RWHEEL*KTL*Fz)*sig_RR/(CWHEEL*KR);
+
+F_eta_FL = (6*RWHEEL*KTV*Fz*alpha_FL)/(CWHEEL*KR);
+F_eta_FR = (6*RWHEEL*KTV*Fz*alpha_FR)/(CWHEEL*KR);
+F_eta_RL = (6*RWHEEL*KTV*Fz*alpha_RL)/(CWHEEL*KR);
+F_eta_RR = (6*RWHEEL*KTV*Fz*alpha_RR)/(CWHEEL*KR);
+
+end
+
+
+
+
+function [vgx_prime_dot, vgy_prime_dot, omz_prime_dot] = Dynamics(vgx_prime, vgy_prime, omz_prime, delta1, delta2, JZZPRIME, M, A, B, T,...
+          F_xi_FL, F_eta_FL, F_xi_FR, F_eta_FR, F_xi_RL, F_eta_RL, F_xi_RR, F_eta_RR) 
+
+F_x_FL = F_xi_FL*cos(delta1) - F_eta_FL*sin(delta1);
+F_y_FL = F_xi_FL*sin(delta1) + F_eta_FL*cos(delta1);
+F_x_FR = F_xi_FR*cos(delta2) - F_eta_FR*sin(delta2);
+F_y_FR = F_xi_FR*sin(delta2) + F_eta_FR*cos(delta2);
+F_x_RL = F_xi_RL;
+F_y_RL = F_eta_RL;
+F_x_RR = F_xi_RR;
+F_y_RR = F_eta_RR;
+
+vgx_prime_dot =  vgy_prime*omz_prime + (1/M)*(F_x_FL + F_x_FR + F_x_RL + F_x_RR);
+vgy_prime_dot = -vgx_prime*omz_prime + (1/M)*(F_y_FL + F_y_FR + F_y_RL + F_y_RR);
+omz_prime_dot = (1/JZZPRIME)*( A*(F_y_FL + F_y_FR) - B*(F_y_RL + F_y_RR) ...
+                 -T*F_x_FL + T*F_x_FR - T*F_x_RL + T*F_x_RR);
+
+end
+
+
+
